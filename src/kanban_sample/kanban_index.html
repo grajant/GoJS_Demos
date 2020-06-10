@@ -1,0 +1,19 @@
+<div id="sample">
+    <div id="myDiagramDiv" style="border: solid 1px black; width:100%; height:500px;"></div>
+    <p></p>
+    <button id="SaveButton" onclick="save()">Save</button>
+    <button onclick="load()">Load</button>
+    Diagram Model saved in JSON format:
+    <br>
+    <textarea id="mySavedModel" style="width:100%;height:300px">{ "class": "go.GraphLinksModel",
+  "nodeDataArray": [
+{"key":"Problems", "text":"0", "isGroup":true, "loc":"0 23.52284749830794", "diagnostics": [] },
+{"key":-1, "group":"Problems", "category":"newbutton",  "loc":"12 35.52284749830794", "desc": "This is a short description" },
+        {"key":-2, "group":"Problems", "category":"newbutton",  "loc":"12 35.52284749830794", "desc": "description" }
+],
+  "linkDataArray": []}
+  </textarea>
+</div>
+
+<script src="bundle.js"></script>
+<!-- This is a short description
