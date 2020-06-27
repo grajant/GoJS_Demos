@@ -1,8 +1,9 @@
 import { addRung, initGridLayout } from './kanban_sample/kanban_sample';
-import * as go from 'gojs/release/go-debug';
+import * as go from 'gojs';
 // import { initSerpentineLayout } from './serpentine_sample/serpentine_sample';
 import { init } from './custom-links';
 import { initBasic } from './basic_sample/basic-sample';
+import { MixinClass } from './mixin-sample/Eq';
 
 const endRung: go.ObjectData = {
     key: 'EndRung',
@@ -28,12 +29,16 @@ otherRung.text = '100';
 otherRung.diagnostics = [{errorCode: 15}];
 console.log(otherRung);
 
-initGridLayout();
-// initSerpentineLayout();
-// init();
+// initGridLayout();
+//
+// addRung(otherRung);
+// addRung(otherRungNode);
+// addRung(endRung);
 
-addRung(otherRung);
-addRung(otherRungNode);
-addRung(endRung);
+// const div = document.querySelector('#myDiagramDiv') as HTMLDivElement;
+// const mixinDiagram = new MixinClass();
+//
+// mixinDiagram.div = div;
+// mixinDiagram.setDiagramModel();
 
-// initBasic();
+initBasic();

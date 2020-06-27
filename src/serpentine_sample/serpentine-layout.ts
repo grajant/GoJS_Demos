@@ -1,7 +1,7 @@
 /*
 *  Copyright (C) 2020 by Rockwell Automation. All Rights Reserved.
 */
-import * as go from 'gojs/release/go-debug';
+import * as go from 'gojs';
 import { ERungMeasures } from '../kanban_sample/pool-layout';
 import { ENodeElements, ERungElements } from '../kanban_sample/rung.template';
 
@@ -28,7 +28,7 @@ export interface ILayoutBounds {
 export class SerpentineLayout {
   private _spacing: go.Size = new go.Size(16, 40);
   private _wrap: number = NaN;
-  private _previousNodes: go.Node[] = [];
+  private _previousNodes: go.Part[] = [];
   private _layout: go.Layout;
   private _rungHeight: number;
   private _originX: number;
@@ -155,7 +155,7 @@ export class SerpentineLayout {
       if (outNodes.length) {
         const lastInNode = nodes[lastInNodeIndex] as go.Node;
         const lastInNodeBounds = this._layout.getLayoutBounds(lastInNode);
-        lastInNodeX = lastInNodeBounds.x + lastInNodeBounds.width + this.spacing.width;
+        lastInNodeX = lastInNodeBounds.x + lastInNodeBounds.width;
         
         this.addLinkToNode(lastInNode, outNodes[0]);
       }
@@ -184,6 +184,11 @@ export class SerpentineLayout {
       rowHeight = newBounds.rowHeight ?? rowHeight;
       hasWrapping = newBounds.hasWrapping;
     });
+  
+    // Updates desc spacing for last node
+    if (outNodes.length) {
+      this.modifyDescSpacing(outNodes[lastIndex]);
+    }
     
     return {
       x: leftX,
@@ -216,8 +221,8 @@ export class SerpentineLayout {
       this.addLinkToNode(node, nextNode);
       
       // Updates desc spacing height
-      const descSpacingHeight = node.findObject(ENodeElements.DESC_CONTENT)?.height ?? 0;
-      this._maxDescHeight = Math.max(descSpacingHeight, this._maxDescHeight);
+      const descHeight = node.findObject(ENodeElements.DESC_CONTENT)?.actualBounds?.height ?? 0;
+      this._maxDescHeight = Math.max(descHeight, this._maxDescHeight);
       
       if (!hasWrapping) {
         node.move(new go.Point(x, y));
@@ -228,12 +233,17 @@ export class SerpentineLayout {
         if (wrappingCondition > this.wrap) {
           if (nextNode) {
             y += rowHeight + spacing.height;
-            x = this.wrap - spacing.width;
           }
           
-          this._maxDescHeight = 0;
-          rowHeight = 0;
+          this._previousNodes = nodes.slice(0, i + 1);
+          this.modifyPreviousNodesBounds(0);
+          
           hasWrapping = true;
+          
+          // Resets everything
+          this._maxDescHeight = 0;
+          this._previousNodes = [];
+          rowHeight = 0;
         }
       } else {
         const newBounds = this.moveNodesToLeft(new go.Point(leftX, y), rowHeight, node);
@@ -244,6 +254,12 @@ export class SerpentineLayout {
       }
       
     });
+    
+    if (!hasWrapping) {
+      this._previousNodes = nodes;
+      this.modifyPreviousNodesBounds(0);
+      this._previousNodes = [];
+    }
     
     return { x: leftX, y, hasWrapping, rowHeight: rowHeight };
   }
@@ -261,6 +277,7 @@ export class SerpentineLayout {
     
     const currentNodeBounds = this._layout.getLayoutBounds(currentNode);
     const currentNodeWidth = currentNodeBounds.width;
+    const descSpacingHeight = currentNode.findObject(ENodeElements.DESC_CONTENT)?.actualBounds?.height ?? 0;
     
     x -= currentNodeWidth;
     rowHeight = Math.max(rowHeight, currentNodeBounds.height);
@@ -269,19 +286,22 @@ export class SerpentineLayout {
     
     // Prevent overlapping with rail or nodes
     if (nextX < wrappingEdge) {
-      this.movePreviousNodes(this.wrap - 32, y);
-      
+      this.modifyPreviousNodesBounds(this.wrap - 32, y);
+  
+      this._maxDescHeight = Math.max(descSpacingHeight, this._maxDescHeight);
       y += rowHeight + this.spacing.height;
       leftX = this.wrap;
       currentNode.move(new go.Point(x, y));
       rowHeight = currentNodeBounds.height;
       hasWrapping = true;
       
+      this._maxDescHeight = 0;
       this._previousNodes = [];
       this._previousNodes.unshift(currentNode);
     } else {
+      this._maxDescHeight = Math.max(descSpacingHeight, this._maxDescHeight);
       currentNode.move(new go.Point(x, y));
-      leftX = this.movePreviousNodes(x, y);
+      leftX = this.modifyPreviousNodesBounds(x, y);
       
       this._previousNodes.unshift(currentNode);
     }
@@ -294,13 +314,17 @@ export class SerpentineLayout {
     };
   }
   
-  private movePreviousNodes(currentX: number, currentY: number): number {
+  private modifyPreviousNodesBounds(currentX: number, currentY?: number): number {
     let x = currentX;
     
-    this._previousNodes.forEach((node: go.Node) => {
-      const nodeBounds = this._layout.getLayoutBounds(node);
-      x -= nodeBounds.width;
-      node.move(new go.Point(x, currentY));
+    this._previousNodes.forEach((node: go.Part) => {
+      if (currentY !== undefined) {
+        const nodeBounds = this._layout.getLayoutBounds(node);
+        x -= nodeBounds.width;
+        node.move(new go.Point(x, currentY));
+      }
+      
+      this.modifyDescSpacing(node);
     });
     
     return x;
@@ -324,6 +348,8 @@ export class SerpentineLayout {
     if (toNode) {
       const newLink = {
         from: fromNode.data.key,
+        fromPort: 'OUT',
+        toPort: 'IN',
         to: toNode.data.key,
         color: this._linksColor,
       };
@@ -341,11 +367,12 @@ export class SerpentineLayout {
     const descContent = node.findObject(ENodeElements.DESC_CONTENT);
     const descSpacing = node.findObject(ENodeElements.DESC_SPACING);
   
-    if (descContent && descContent.actualBounds
-      && descSpacing) {
-      const descContentHeight = descContent.actualBounds.height;
+    if (descSpacing) {
+      const descContentHeight = descContent?.actualBounds?.height ?? 0;
     
-      descSpacing.height = this._maxDescHeight - descContentHeight;
+      descSpacing.height = this._maxDescHeight - descContentHeight < 0
+        ? 0
+        : this._maxDescHeight - descContentHeight;
     }
   }
   
@@ -365,15 +392,15 @@ export class SerpentineLayout {
     
     const endRailLine = this._currentRung.findObject(ERungElements.END_RAIL_LINE);
     const endRailLinePoint = endRailLine?.getDocumentPoint(go.Spot.Right);
+    const currentRungPoint = this._currentRung.getDocumentPoint(go.Spot.TopLeft);
     let distanceToElm: number = 0;
     
-    // Connects end rail to last node
+    // Connects end rail to last node out port
     if (lastNode) {
       console.debug('last node position', lastNode.position);
-      const lastNodeFromPort = lastNode?.findPort('') as go.Shape;
+      const lastNodeFromPort = lastNode?.findPort('OUT') as go.Shape;
       console.debug('last node port loc point', lastNodeFromPort.getDocumentBounds());
       const lastNodeFromPortPoint = lastNodeFromPort?.getDocumentPoint(go.Spot.TopRight);
-      const currentRungPoint = this._currentRung.getDocumentPoint(go.Spot.TopLeft);
       // @ts-ignore
       const normalizedOffsetY = lastNodeFromPortPoint.y - currentRungPoint.y;
       
@@ -389,13 +416,18 @@ export class SerpentineLayout {
     // Modifies init rail width in order to connect it to first node, if any
     if (firstNode) {
       const initRailLinePoint = initRailLine?.getDocumentPoint(go.Spot.Left);
-      const firstNodeFromPort = firstNode?.findPort('');
+      const firstNodeFromPort = firstNode?.findPort('IN');
       const firstNodeFromPortPoint = firstNodeFromPort?.getDocumentPoint(go.Spot.TopLeft);
       
       // @ts-ignore
       const nodeToRailDistance = firstNodeFromPortPoint.x - initRailLinePoint.x;
+      // @ts-ignore
+      const normalizedOffsetY = firstNodeFromPortPoint.y - currentRungPoint.y;
       
-      if (initRailLine) initRailLine.width = nodeToRailDistance < 0 ? initRailLine.width : nodeToRailDistance;
+      if (initRailLine) {
+        initRailLine.alignment = new go.Spot(0, 0, 0, normalizedOffsetY);
+        initRailLine.width = nodeToRailDistance < 0 ? initRailLine.width : nodeToRailDistance;
+      }
     } else {
       const initRailLinePoint = initRailLine?.getDocumentPoint(go.Spot.Left);
       // @ts-ignore

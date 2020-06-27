@@ -1,12 +1,30 @@
-import * as go from 'gojs/release/go-debug';
+import * as go from 'gojs';
 import { ERungMeasures, MIN_WIDTH_HEADER, PLACEHOLDER_OFFSET, PoolLayout } from './pool-layout';
 
 export namespace LibraryColors {
+  export const PRIMARY_400 = '#DBDFE2';
+  export const PRIMARY_500 = '#B8BCBF';
   export const PRIMARY_600_CONTRAST = '#FFF';
+  export const PRIMARY_800 = '#5D6063';
   export const BG_6_CONTRAST = '#000';
   export const SECONDARY_600 = '#235D9F';
+  export const SECONDARY_A200 = '#00D6FF';
   export const STATUS_ERROR = '#AA0000';
+  export const BG_5 = '#57D9A3';
 }
+
+export const LD_COMMON_COLORS = {
+  TRANSPARENT: 'rgba(0,0,0,0)',
+  ERROR: LibraryColors.STATUS_ERROR,
+  ERROR_ICON_STROKE: LibraryColors.PRIMARY_600_CONTRAST,
+  SELECTION_ACTIVE: LibraryColors.SECONDARY_600,
+  STROKE_MULTI_FOCUS: LibraryColors.SECONDARY_A200,
+  STROKE_MULTI_UNFOCUS: LibraryColors.PRIMARY_800,
+  HEADER_TEXT_NORMAL: LibraryColors.BG_6_CONTRAST,
+  HEADER_TEXT_SELECTED: LibraryColors.PRIMARY_600_CONTRAST,
+  DROPPING_LOCATION_INACTIVE: LibraryColors.PRIMARY_500,
+  DROPPING_LOCATION_ACTIVE: LibraryColors.BG_5,
+};
 
 export const enum ERungElements {
   HEADER = 'HEADER',
@@ -128,9 +146,10 @@ function rungHeaderTemplate(): go.Panel {
         name: ERungElements.HEADER_CONTENT,
         height: 18,
         padding: new go.Margin(0, 10, 0, 8),
-        alignment: go.Spot.TopLeft, alignmentFocus: new go.Spot(0, 0.5, 0, -40),
+        alignmentFocus: go.Spot.MiddleLeft,
         // background: 'lightgreen',
       },
+      new go.Binding('alignment', 'alignment').ofObject(ERungElements.INIT_RAIL_LINE),
       $(go.TextBlock, // Rung number
         {
           name: ERungElements.HEADER_TEXT, font: '14px Lato, sans-serif', // background: 'lightblue',
@@ -168,8 +187,8 @@ function rungBodyTemplate(): go.Panel {
         name: ERungElements.INIT_RAIL_LINE,
         height: 0, width: 16,
         strokeWidth: 1,
-        alignment: go.Spot.TopLeft,
-        alignmentFocus: new go.Spot(0, 0, 0, -1 * ERungMeasures.RUNG_OFFSET),
+        alignment: new go.Spot(0, 0, 0, ERungMeasures.RUNG_OFFSET),
+        alignmentFocus: go.Spot.TopLeft,
       },
       new go.Binding('stroke', 'diagnostics', diagnosticsColorConversion),
     ),

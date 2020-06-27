@@ -1,4 +1,4 @@
-import * as go from 'gojs/release/go-debug';
+import * as go from 'gojs';
 import { ENodeElements, ERungElements } from './rung.template';
 import { SerpentineLayout } from '../serpentine_sample/serpentine-layout';
 
@@ -56,6 +56,7 @@ export class PoolLayout extends go.GridLayout {
   
   public doLayout(coll: go.Diagram | go.Group | go.Iterable<go.Part>): void {
     console.log('Doing layout');
+    console.warn('layout collection', coll);
     const diagram = this.diagram;
     if (diagram === null) return;
     diagram.startTransaction('PoolLayout');
@@ -65,34 +66,7 @@ export class PoolLayout extends go.GridLayout {
     const { headerShapeWidth, textWidth: maxTextWidth } = this.computeHeaderMinWidth();
     
     diagram.findTopLevelGroups().each((rung: go.Group) => {
-      let maxDescHeight = 0;
       let maxNodeHeight = 0;
-      const rungElements = rung.memberParts;
-      
-      rungElements.each((wireElement: go.Part) => {
-        const elmBounds = wireElement.actualBounds;
-        const descContent = wireElement.findObject(ENodeElements.DESC_CONTENT);
-        maxDescHeight = Math.max(descContent?.actualBounds?.height ?? 0, maxDescHeight);
-        maxNodeHeight = Math.max(maxNodeHeight, elmBounds.height);
-      });
-
-      rungElements.each((wireElement: go.Part) => {
-        const descContent = wireElement.findObject(ENodeElements.DESC_CONTENT);
-        const descSpacing = wireElement.findObject(ENodeElements.DESC_SPACING);
-
-        if (descContent && descContent.actualBounds
-          && descSpacing) {
-          console.debug('DESC_CONTENT HEIGHT index', rung.data.key, descContent.actualBounds.height);
-          const descContentHeight = descContent.actualBounds.height;
-          
-          descSpacing.height = maxDescHeight - descContentHeight;
-          wireElement.updateTargetBindings();
-        }
-      });
-  
-      const rungLine = rung.findObject(ERungElements.INIT_RAIL_LINE);
-      const rungLineOffset = maxDescHeight + ERungMeasures.RUNG_OFFSET;
-      if (rungLine) rungLine.alignmentFocus = new go.Spot(0, 0, 0, -1 * rungLineOffset);
       
       const headerShape = rung.findObject(ERungElements.HEADER_SEL);
       const headerTextBlock = rung.findObject(ERungElements.HEADER_TEXT) as go.TextBlock;
@@ -103,9 +77,8 @@ export class PoolLayout extends go.GridLayout {
       if (rungContentShape !== null) {
         rungContentShape.width = poolSize.width;
         rungContentShape.height = maxNodeHeight;
-        
-        
-        
+  
+  
         // Rung number text blocks need to be the same width
         // in order to have the error icons aligned.
         if (headerTextBlock && rung.data.key !== 'EndRung') {
@@ -118,11 +91,12 @@ export class PoolLayout extends go.GridLayout {
         if (headerShape) {
           headerShape.width = headerShapeWidth;
         }
-        
+  
         const rungContentBounds = rungContentShape.getDocumentBounds();
         const wrap = rungContentBounds.x + poolSize.width;
         const serpentineLayout = new SerpentineLayout(this, rung, wrap);
         serpentineLayout.doLayoutForNodes(rung.memberParts, rungContentBounds.x, rungContentBounds.y);
+  
         const rungHeight = serpentineLayout.rungHeight;
         rungContentShape.height = rungHeight;
   

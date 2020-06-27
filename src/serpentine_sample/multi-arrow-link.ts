@@ -1,4 +1,4 @@
-import * as go from 'gojs/release/go-debug';
+import * as go from 'gojs';
 
 /**
  * Produces a Geometry that includes an arrowhead every {@link arrowSpacing} on each segment.
@@ -31,7 +31,7 @@ export class MultiArrowLink extends go.Link {
         super();
         go.Link.call(this);
         this.routing = go.Link.Orthogonal;
-        // this.zOrder = 1;
+        this.zOrder = 1;
         this.selectable = false;
     }
 

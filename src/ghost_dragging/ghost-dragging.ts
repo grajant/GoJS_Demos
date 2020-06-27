@@ -1,5 +1,5 @@
-import * as go from 'gojs/release/go-debug';
-import { KeyValuePair } from 'gojs/release/go-debug';
+import * as go from 'gojs';
+import { KeyValuePair } from 'gojs';
 
 /**
  * The NonRealtimeDraggingTool class lets the user drag an image instead of actually moving any selected nodes,

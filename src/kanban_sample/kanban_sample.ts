@@ -1,8 +1,10 @@
-import * as go from 'gojs/release/go-debug';
+import * as go from 'gojs';
 import { PoolLayout } from './pool-layout';
 import { $, ENodeElements, generateGroupTemplate } from './rung.template';
 import { MultiArrowLink } from '../serpentine_sample/multi-arrow-link';
 import { NonRealtimeDraggingTool } from '../ghost_dragging/ghost-dragging';
+import { generateBitInstructionTemplate } from './bit-instruction.template';
+import { generateBoxInstructionTemplate, IInstructionData } from './box-instruction.template';
 
 let myDiagram: go.Diagram;
 
@@ -25,27 +27,26 @@ function relayoutDiagram() {
     // part.invalidateLayout();
     console.log('Will validate layout');
   });
-  myDiagram.layoutDiagram(true);
   
+  myDiagram.layoutDiagram(true);
 }
 
-let wasCopied = false;
+let wasCopiedOrMoved = false;
 
 function onSelectionCopied(event: go.DiagramEvent) {
-  wasCopied = true;
+  wasCopiedOrMoved = true;
   // console.warn('selection copied');
   event.subject.each((part: go.Part) => {
-    const nodeDescSpacing = part.findObject(ENodeElements.DESC_SPACING);
-    
-    if (nodeDescSpacing) {
-      nodeDescSpacing.height = 5;
-    }
+    part.invalidateLayout();
   });
   relayoutDiagram();
 }
 
 function onLayoutCompleted() {
-  console.warn('init layout');
+  if (wasCopiedOrMoved) {
+    relayoutDiagram();
+    wasCopiedOrMoved = false;
+  }
 }
 
 export function initGridLayout() {
@@ -69,9 +70,9 @@ export function initGridLayout() {
         'commandHandler.copiesGroupKey': true,
         'linkingTool.isUnconnectedLinkValid': true,
         // automatically re-layout the swim lanes after dragging the selection
-        'SelectionMoved': relayoutDiagram,  // this DiagramEvent listener is
+        'SelectionMoved': onSelectionCopied,  // this DiagramEvent listener is
         'ClipboardPasted': onSelectionCopied, // defined above
-        'InitialLayoutCompleted': onLayoutCompleted,
+        'LayoutCompleted': onLayoutCompleted,
         'animationManager.isEnabled': false,
         'undoManager.isEnabled': true,
         // allow TextEditingTool to start without selecting first
@@ -107,14 +108,14 @@ export function initGridLayout() {
   myDiagram.commandHandler.pasteFromClipboard = function () {
     const partCollection = go.CommandHandler.prototype.pasteFromClipboard.call(this);
     
-    if (copiedPosition) {
-      if (partCollection.first()) {
-        // @ts-ignore
-        partCollection.first().position = copiedPosition;
-        // @ts-ignore
-        partCollection.first().x = 100;
-      }
-    }
+    // if (copiedPosition) {
+    //   if (partCollection.first()) {
+    //     // @ts-ignore
+    //     partCollection.first().position = copiedPosition;
+    //     // @ts-ignore
+    //     partCollection.first().x = 100;
+    //   }
+    // }
     // this.diagram.moveParts(coll, this._lastPasteOffset);
     // this._lastPasteOffset.add(this.pasteOffset);
     return new go.Set();
@@ -171,142 +172,14 @@ export function initGridLayout() {
     );
   
   // unmovable node that acts as a button
-  myDiagram.nodeTemplateMap.add('newbutton',
-    $(go.Node, go.Panel.Table,
-      {
-        defaultColumnSeparatorStrokeWidth: 0,
-        defaultRowSeparatorStrokeWidth: 0,
-        defaultSeparatorPadding: 0,
-        background: 'transparent',
-        // zOrder: 2,
-      },
-      $(go.RowColumnDefinition, { column: 3, maximum: 16 }),
-      
-      $(go.Panel, 'Auto', {
-          row: 1,
-          rowSpan: 2,
-          column: 0,
-          columnSpan: 3,
-          stretch: go.GraphObject.Fill,
-          minSize: new go.Size(60, NaN),
-        },
-        $(go.Shape, 'RoundedRectangle',
-          {
-            strokeWidth: 1, fill: 'white', stretch: go.GraphObject.Fill,
-          },
-          new go.Binding('stroke', 'isSelected',
-            (isSelected: boolean) => isSelected ? 'lightblue' : 'grey')
-            .ofObject(),
-        ),
-      ),
-      
-      // Desc Row
-      $(go.Panel, go.Panel.TableRow, { row: 0 },
-        $(go.Panel, go.Panel.Vertical, { column: 0, columnSpan: 3 },
-          $(go.Shape, 'Rectangle',
-            {
-              name: ENodeElements.DESC_SPACING,
-              width: 0, height: 0,
-              strokeWidth: 0,
-            },
-          ),
-          $(go.Panel, 'Auto',
-            { name: ENodeElements.DESC_CONTENT },
-            $(go.Shape, 'Rectangle',
-              {
-                fill: '#dddddd', strokeWidth: 0,
-                minSize: new go.Size(0, 0),
-              },
-            ),
-            $(go.TextBlock,
-              { stroke: '#000', margin: 8 },
-              new go.Binding('text', 'desc'),
-            ),
-            // new go.Binding('visible', 'desc', (desc: string): boolean => desc.length > 0),
-            new go.Binding('height', 'desc', (desc: string): number => desc.length > 0 ? NaN : 0),
-          ),
-        ),
-      ),
-      
-      // Operand Row
-      $(go.Panel, go.Panel.TableRow, { row: 1 },
-        $(go.Panel, 'Auto',
-          {
-            column: 0, columnSpan: 3,
-          },
-          $(go.Shape, 'Rectangle',
-            {
-              stretch: go.GraphObject.Horizontal,
-              height: 24, strokeWidth: 0,
-            },
-            new go.Binding('fill', 'isSelected',
-              (isSelected: boolean) => isSelected ? 'lightblue' : 'transparent')
-              .ofObject(),
-          ),
-          $(go.TextBlock,
-            {
-              name: 'OperandShape',
-              column: 0, columnSpan: 3,
-              alignment: go.Spot.Center,
-              text: '?',
-              textAlign: 'center',
-              minSize: new go.Size(80, NaN),
-              margin: new go.Margin(0, 4, 0, 4),
-            },
-            new go.Binding('stroke', 'isSelected',
-              (isSelected: boolean) => isSelected ? 'white' : 'black')
-              .ofObject(),
-            new go.Binding('text', 'key'),
-          ),
-        ),
-      ),
-      
-      // Instruction Shape Row
-      $(go.Panel, go.Panel.TableRow,
-        { row: 2 },
-        $(go.Panel, go.Panel.Vertical,
-          {
-            column: 0, columnSpan: 3,
-            stretch: go.GraphObject.Horizontal,
-            padding: new go.Margin(16, 0, 0, 0),
-            height: 32,
-          },
-          $(go.Shape, 'Rectangle',
-            {
-              stretch: go.GraphObject.Horizontal,
-              alignment: go.Spot.Left,
-              height: 0, strokeWidth: 1,
-              fromSpot: go.Spot.MiddleRight,
-              toSpot: go.Spot.MiddleLeft,
-              portId: '',
-            },
-            new go.Binding('width', 'width', (width: number): number => {
-              console.log('shape w', width);
-              return width / 2;
-            }).ofObject('OperandShape'),
-          ),
-          new go.Binding('height', 'height'),
-        ),
-        $(go.Panel, go.Panel.Vertical,
-          {
-            background: 'transparent',
-            column: 3, height: 32,
-            stretch: go.GraphObject.Horizontal,
-            padding: new go.Margin(12, 0, 0, 4),
-          },
-          $(go.Shape, 'Rectangle',
-            {
-              alignment: go.Spot.TopLeft,
-              desiredSize: new go.Size(7, 7),
-              strokeWidth: 1,
-              fill: 'green',
-              visible: true,
-            },
-          ),
-          new go.Binding('height', 'height'),
-        ),
-      ),
-    ),
+  myDiagram.nodeTemplateMap.add(
+    'BIT',
+    generateBitInstructionTemplate(),
+  );
+  
+  myDiagram.nodeTemplateMap.add(
+    'BOX',
+    generateBoxInstructionTemplate(),
   );
   
   myDiagram.groupTemplate = generateGroupTemplate(myDiagram);
@@ -326,80 +199,147 @@ function load() {
   // myDiagram.model = go.Model
   //   .fromJson((document.getElementById('mySavedModel') as HTMLTextAreaElement).value);
   // myDiagram.delayInitialization(relayoutDiagram);
-  myDiagram.model = new go.GraphLinksModel(
-    [
+  const instruction: IInstructionData = {
+    key: 'BoxTest',
+    name: 'TEST',
+    category: 'BOX',
+    instructionDirection: 'IN',
+    displayType: 'box',
+    group: 'Problems',
+    bitLegDictatingRungState: true,
+    bitLegParameters: [
       {
-        instructionDirection: 'IN',
-        key: -1,
-        group: 'Problems',
-        category: 'newbutton',
-        loc: '12 35.52284749830794',
-        desc: 'This is a short description',
-      },
-      { instructionDirection: 'IN', key: -2, group: 'Problems', category: 'newbutton', desc: '' },
-      {
-        group: 'Problems',
-        instructionDirection: 'OUT',
-        key: 'Xi',
-        color: 'tomato',
-        category: 'newbutton',
-        height: 150,
-        desc: '',
+        paramName: 'LongOutName',
+        isEditable: false,
+        hasOperand: false,
       },
       {
-        group: 'Problems',
-        instructionDirection: 'OUT',
-        key: 'Omicron',
-        color: 'goldenrod',
-        category: 'newbutton',
-        desc: '',
-      },
-      { group: 'Problems', instructionDirection: 'OUT', key: 'Pi', color: 'orange', category: 'newbutton', desc: '' },
-      { group: 'Problems', instructionDirection: 'OUT', key: 'Rho', color: 'coral', category: 'newbutton', desc: '' },
-      {
-        group: 'Problems',
-        instructionDirection: 'OUT',
-        key: 'Sigma',
-        color: 'tomato',
-        category: 'newbutton',
-        desc: '',
+        paramName: 'OUT2',
+        isEditable: false,
+        hasOperand: false,
       },
       {
-        group: 'Problems',
-        instructionDirection: 'OUT',
-        key: 'Tau',
-        color: 'goldenrod',
-        category: 'newbutton',
-        desc: '',
+        paramName: 'OUT3',
+        isEditable: false,
+        hasOperand: false,
       },
       {
-        group: 'Problems',
-        instructionDirection: 'OUT',
-        key: 'Upsilon',
-        color: 'orange',
-        category: 'newbutton',
-        desc: '',
-      },
-      { group: 'Problems', instructionDirection: 'OUT', key: 'Phi', color: 'coral', category: 'newbutton', desc: '' },
-      { group: 'Problems', instructionDirection: 'OUT', key: 'Chi', color: 'tomato', category: 'newbutton', desc: '' },
-      {
-        group: 'Problems',
-        instructionDirection: 'OUT',
-        key: 'Psi',
-        color: 'goldenrod',
-        category: 'newbutton',
-        desc: '',
+        paramName: 'OUT4',
+        isEditable: false,
+        hasOperand: false,
       },
       {
-        group: 'Problems',
-        instructionDirection: 'OUT',
-        key: 'Omega',
-        color: 'orange',
-        category: 'newbutton',
-        desc: '',
+        paramName: 'OUT5',
+        isEditable: false,
+        hasOperand: false,
       },
-      { key: 'Problems', text: '0', isGroup: true, loc: '0 23.52284749830794', diagnostics: [] },
     ],
+    onFaceParameters: [
+      {
+        paramName: 'Param1',
+        isEditable: true,
+        hasOperand: true,
+      },
+      {
+        paramName: '',
+        isEditable: false,
+        hasOperand: false,
+        dataSourceIndex: 0,
+      },
+      {
+        paramName: 'Param2',
+        isEditable: true,
+        hasOperand: true,
+      },
+      {
+        paramName: '',
+        isEditable: false,
+        hasOperand: false,
+        dataSourceIndex: 2,
+      },
+    ],
+  };
+  
+  const instruction2 = { ...instruction, bitLegDictatingRungState: false };
+  myDiagram.model = $(go.GraphLinksModel, {
+      linkFromPortIdProperty: 'fromPort',  // required information:
+      linkToPortIdProperty: 'toPort',      // identifies data property names
+      nodeDataArray: [
+        instruction,
+        instruction2,
+        {
+          instructionDirection: 'IN',
+          key: -1,
+          group: 'Problems',
+          category: 'BIT',
+          loc: '12 35.52284749830794',
+          desc: '',
+        },
+        { instructionDirection: 'IN', key: -2, group: 'Problems', category: 'BIT', desc: '' },
+        {
+          group: 'Problems',
+          instructionDirection: 'OUT',
+          key: 'Xi',
+          color: 'tomato',
+          category: 'BIT',
+          height: 150,
+          desc: '',
+        },
+        {
+          group: 'Problems',
+          instructionDirection: 'OUT',
+          key: 'Omicron',
+          color: 'goldenrod',
+          category: 'BIT',
+          desc: '',
+        },
+        { group: 'Problems', instructionDirection: 'OUT', key: 'Pi', color: 'orange', category: 'BIT', desc: '' },
+        { group: 'Problems', instructionDirection: 'OUT', key: 'Rho', color: 'coral', category: 'BIT', desc: '' },
+        {
+          group: 'Problems',
+          instructionDirection: 'OUT',
+          key: 'Sigma',
+          color: 'tomato',
+          category: 'BIT',
+          desc: '',
+        },
+        {
+          group: 'Problems',
+          instructionDirection: 'OUT',
+          key: 'Tau',
+          color: 'goldenrod',
+          category: 'BIT',
+          desc: '',
+        },
+        {
+          group: 'Problems',
+          instructionDirection: 'OUT',
+          key: 'Upsilon',
+          color: 'orange',
+          category: 'BIT',
+          desc: '',
+        },
+        { group: 'Problems', instructionDirection: 'OUT', key: 'Phi', color: 'coral', category: 'BIT', desc: '' },
+        { group: 'Problems', instructionDirection: 'OUT', key: 'Chi', color: 'tomato', category: 'BIT', desc: '' },
+        {
+          group: 'Problems',
+          instructionDirection: 'OUT',
+          key: 'Psi',
+          color: 'goldenrod',
+          category: 'BIT',
+          desc: '',
+        },
+        {
+          group: 'Problems',
+          instructionDirection: 'OUT',
+          key: 'Omega',
+          color: 'orange',
+          category: 'BIT',
+          desc: 'Last out node test',
+        },
+        { key: 'Problems', text: '0', isGroup: true, loc: '0 23.52284749830794', diagnostics: [] },
+      ],
+    },
   );
   myDiagram.delayInitialization(relayoutDiagram);
 }
