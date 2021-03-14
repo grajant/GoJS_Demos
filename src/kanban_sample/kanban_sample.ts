@@ -128,6 +128,16 @@ export function initGridLayout() {
     return noteColors[Math.min(num, noteColors.length - 1)];
   }
   
+  const railTemplate =
+    $(go.Node, 'Auto', { zOrder: 100, isLayoutPositioned: false },
+      $(go.Shape, 'Rectangle',
+        { width: 4, height: 300 },
+        { strokeWidth: 0, fill: 'purple' },
+        new go.Binding('height', 'h'),
+      ),
+      new go.Binding('location', 'loc', go.Point.parse),
+    )
+  
   myDiagram.nodeTemplate =
     $(go.Node, 'Auto', { zOrder: 10 },
       // new go.Binding('location', 'loc', go.Point.parse).makeTwoWay(go.Point.stringify),
@@ -170,6 +180,146 @@ export function initGridLayout() {
       ),
       new go.Binding('points'),
     );
+  
+  myDiagram.nodeTemplateMap.add('railTemplate', railTemplate)
+  
+  myDiagram.nodeTemplateMap.add('newbutton',
+    $(go.Node, go.Panel.Table,
+      {
+        defaultColumnSeparatorStrokeWidth: 0,
+        defaultRowSeparatorStrokeWidth: 0,
+        defaultSeparatorPadding: 0,
+        background: 'transparent',
+        // zOrder: 2,
+      },
+      $(go.RowColumnDefinition, { column: 3, maximum: 16 }),
+      
+      $(go.Panel, 'Auto', {
+          row: 1,
+          rowSpan: 2,
+          column: 0,
+          columnSpan: 3,
+          stretch: go.GraphObject.Fill,
+          minSize: new go.Size(60, NaN),
+        },
+        $(go.Shape, 'RoundedRectangle',
+          {
+            strokeWidth: 1, fill: 'white', stretch: go.GraphObject.Fill,
+          },
+          new go.Binding('stroke', 'isSelected',
+            (isSelected: boolean) => isSelected ? 'lightblue' : 'grey')
+            .ofObject(),
+        ),
+      ),
+      
+      // Desc Row
+      $(go.Panel, go.Panel.TableRow, { row: 0 },
+        $(go.Panel, go.Panel.Vertical, { column: 0, columnSpan: 3 },
+          $(go.Shape, 'Rectangle',
+            {
+              name: ENodeElements.DESC_SPACING,
+              width: 0, height: 0,
+              strokeWidth: 0,
+            },
+          ),
+          $(go.Panel, 'Auto',
+            { name: ENodeElements.DESC_CONTENT },
+            $(go.Shape, 'Rectangle',
+              {
+                fill: '#dddddd', strokeWidth: 0,
+                minSize: new go.Size(0, 0),
+              },
+            ),
+            $(go.TextBlock,
+              { stroke: '#000', margin: 8 },
+              new go.Binding('text', 'desc'),
+            ),
+            // new go.Binding('visible', 'desc', (desc: string): boolean => desc.length > 0),
+            new go.Binding('height', 'desc', (desc: string): number => desc.length > 0 ? NaN : 0),
+          ),
+        ),
+      ),
+      
+      // Operand Row
+      $(go.Panel, go.Panel.TableRow, { row: 1 },
+        $(go.Panel, 'Auto',
+          {
+            column: 0, columnSpan: 3,
+          },
+          $(go.Shape, 'Rectangle',
+            {
+              stretch: go.GraphObject.Horizontal,
+              height: 24, strokeWidth: 0,
+            },
+            new go.Binding('fill', 'isSelected',
+              (isSelected: boolean) => isSelected ? 'lightblue' : 'transparent')
+              .ofObject(),
+          ),
+          $(go.TextBlock,
+            {
+              name: 'OperandShape',
+              column: 0, columnSpan: 3,
+              alignment: go.Spot.Center,
+              text: '?',
+              textAlign: 'center',
+              minSize: new go.Size(80, NaN),
+              margin: new go.Margin(0, 4, 0, 4),
+            },
+            new go.Binding('stroke', 'isSelected',
+              (isSelected: boolean) => isSelected ? 'white' : 'black')
+              .ofObject(),
+            new go.Binding('text', 'key'),
+          ),
+        ),
+      ),
+      
+      // Instruction Shape Row
+      $(go.Panel, go.Panel.TableRow,
+        { row: 2 },
+        $(go.Panel, go.Panel.Vertical,
+          {
+            column: 0, columnSpan: 3,
+            stretch: go.GraphObject.Horizontal,
+            padding: new go.Margin(16, 0, 0, 0),
+            height: 32,
+          },
+          $(go.Shape, 'Rectangle',
+            {
+              stretch: go.GraphObject.Horizontal,
+              alignment: go.Spot.Left,
+              height: 0, strokeWidth: 1,
+              fromSpot: go.Spot.MiddleRight,
+              toSpot: go.Spot.MiddleLeft,
+              portId: '',
+            },
+            new go.Binding('width', 'width', (width: number): number => {
+              console.log('shape w', width);
+              return width / 2;
+            }).ofObject('OperandShape'),
+          ),
+          new go.Binding('height', 'height'),
+        ),
+        $(go.Panel, go.Panel.Vertical,
+          {
+            background: 'transparent',
+            column: 3, height: 32,
+            stretch: go.GraphObject.Horizontal,
+            padding: new go.Margin(12, 0, 0, 4),
+          },
+          $(go.Shape, 'Rectangle',
+            {
+              alignment: go.Spot.TopLeft,
+              desiredSize: new go.Size(7, 7),
+              strokeWidth: 1,
+              fill: 'green',
+              visible: true,
+            },
+          ),
+          new go.Binding('height', 'height'),
+        ),
+      ),
+    ),
+  );
   
   // unmovable node that acts as a button
   myDiagram.nodeTemplateMap.add(
@@ -267,76 +417,42 @@ function load() {
       nodeDataArray: [
         instruction,
         instruction2,
-        {
-          instructionDirection: 'IN',
-          key: -1,
-          group: 'Problems',
-          category: 'BIT',
-          loc: '12 35.52284749830794',
-          desc: '',
-        },
-        { instructionDirection: 'IN', key: -2, group: 'Problems', category: 'BIT', desc: '' },
-        {
-          group: 'Problems',
-          instructionDirection: 'OUT',
-          key: 'Xi',
-          color: 'tomato',
-          category: 'BIT',
-          height: 150,
-          desc: '',
-        },
-        {
-          group: 'Problems',
-          instructionDirection: 'OUT',
-          key: 'Omicron',
-          color: 'goldenrod',
-          category: 'BIT',
-          desc: '',
-        },
-        { group: 'Problems', instructionDirection: 'OUT', key: 'Pi', color: 'orange', category: 'BIT', desc: '' },
-        { group: 'Problems', instructionDirection: 'OUT', key: 'Rho', color: 'coral', category: 'BIT', desc: '' },
-        {
-          group: 'Problems',
-          instructionDirection: 'OUT',
-          key: 'Sigma',
-          color: 'tomato',
-          category: 'BIT',
-          desc: '',
-        },
-        {
-          group: 'Problems',
-          instructionDirection: 'OUT',
-          key: 'Tau',
-          color: 'goldenrod',
-          category: 'BIT',
-          desc: '',
-        },
-        {
-          group: 'Problems',
-          instructionDirection: 'OUT',
-          key: 'Upsilon',
-          color: 'orange',
-          category: 'BIT',
-          desc: '',
-        },
-        { group: 'Problems', instructionDirection: 'OUT', key: 'Phi', color: 'coral', category: 'BIT', desc: '' },
-        { group: 'Problems', instructionDirection: 'OUT', key: 'Chi', color: 'tomato', category: 'BIT', desc: '' },
-        {
-          group: 'Problems',
-          instructionDirection: 'OUT',
-          key: 'Psi',
-          color: 'goldenrod',
-          category: 'BIT',
-          desc: '',
-        },
-        {
-          group: 'Problems',
-          instructionDirection: 'OUT',
-          key: 'Omega',
-          color: 'orange',
-          category: 'BIT',
-          desc: 'Last out node test',
-        },
+        // {
+        //   instructionDirection: 'IN',
+        //   key: -1,
+        //   group: 'Problems',
+        //   category: 'BIT',
+        //   loc: '12 35.52284749830794',
+        //   desc: '',
+        // },
+        // { instructionDirection: 'IN', key: -2, group: 'Problems', category: 'BIT', desc: '' },
+        // {
+        //   group: 'Problems',
+        //   instructionDirection: 'OUT',
+        //   key: 'Xi',
+        //   color: 'tomato',
+        //   category: 'BIT',
+        //   height: 150,
+        //   desc: '',
+        // },
+        // {
+        //   group: 'Problems',
+        //   instructionDirection: 'OUT',
+        //   key: 'Omicron',
+        //   color: 'goldenrod',
+        //   category: 'BIT',
+        //   desc: '',
+        // },
+        // { group: 'Problems', instructionDirection: 'OUT', key: 'Pi', color: 'orange', category: 'BIT', desc: '' },
+        // { group: 'Problems', instructionDirection: 'OUT', key: 'Rho', color: 'coral', category: 'BIT', desc: '' },
+        // {
+        //   group: 'Problems',
+        //   instructionDirection: 'OUT',
+        //   key: 'Sigma',
+        //   color: 'tomato',
+        //   category: 'BIT',
+        //   desc: '',
+        // },
         { key: 'Problems', text: '0', isGroup: true, loc: '0 23.52284749830794', diagnostics: [] },
       ],
     },

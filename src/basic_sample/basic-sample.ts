@@ -3,10 +3,36 @@ import * as go from 'gojs';
 import { generateBoxInstructionTemplate, IInstructionData } from '../kanban_sample/box-instruction.template';
 import { generateBitInstructionTemplate } from '../kanban_sample/bit-instruction.template';
 import { defineAllFigures, EFigures } from '../kanban_sample/figures.template';
+import { NonRealtimeDraggingTool } from '../ghost_dragging/ghost-dragging';
 
 let myDiagram: go.Diagram;
 
 let previousSelection: go.Set<go.Part>;
+let myLinkData: go.ObjectData | null;
+const originalPoints = [new go.Point(0, 0), new go.Point(5, 0)];
+
+class MyDraggingTool extends go.DraggingTool {
+  // private
+  
+  public doActivate(): void {
+    console.warn('obj point', this.currentPart?.getDocumentPoint(go.Spot.TopLeft));
+    const linkData = { linkKey: 'branchLink', points: new go.List(originalPoints) }
+    super.doActivate();
+  }
+  
+  public doMouseMove(): void {
+    
+    // super.doMouseMove();
+  }
+  
+  public doDragOver(pt: go.Point, obj: go.GraphObject | null): void {
+    const point1 = new go.Point(pt.x, originalPoints[0].y);
+    const point2 = new go.Point(pt.x, pt.y);
+    const linkOriginalPoints = [originalPoints[0], point1, point2];
+    if (myLinkData) myDiagram.model.set(myLinkData, 'points', new go.List(linkOriginalPoints))
+    // super.doDragOver(pt, obj);
+  }
+}
 
 export function initBasic() {
   defineAllFigures();
@@ -28,13 +54,38 @@ export function initBasic() {
             }
           })
         },
+        'draggingTool': new NonRealtimeDraggingTool(),
         'textEditingTool.starting': go.TextEditingTool.DoubleClick,
-        // start everything in the middle of the viewport
-        
-        // disallow nodes to be dragged to the diagram's background
+        "linkingTool.isUnconnectedLinkValid": true,
+        "linkingTool.portGravity": 20,
+        "relinkingTool.isUnconnectedLinkValid": true,
+        "relinkingTool.portGravity": 20,
+        "linkReshapingTool.handleArchetype":
+          $(go.Shape, "Diamond", { desiredSize: new go.Size(7, 7), fill: "lightblue", stroke: "deepskyblue" }),
+        "rotatingTool.handleAngle": 270,
+        "rotatingTool.handleDistance": 30,
+        "rotatingTool.snapAngleMultiple": 15,
+        "rotatingTool.snapAngleEpsilon": 15,
+        "undoManager.isEnabled": true
       },
     );
   
+  myDiagram.linkTemplate =
+    $(go.Link,  // the whole link panel
+      { selectable: true, },
+      { relinkableFrom: true, relinkableTo: true, reshapable: true },
+      {
+        routing: go.Link.AvoidsNodes,
+        curve: go.Link.JumpOver,
+        corner: 0,
+        toShortLength: 8
+      },
+      new go.Binding("points").makeTwoWay(),
+      $(go.Shape,  // the link path shape
+        { isPanelMain: true, strokeWidth: 1 }),
+      $(go.Shape,  // the arrowhead
+        { toArrow: "Rectangle", stroke: null, fill: '#2b98ca', width: 8, height: 16 }),
+    );
   // myDiagram.nodeTemplate =
   //   $(go.Node, go.Panel.Horizontal,
   //     {
@@ -158,14 +209,22 @@ function load() {
   };
   const instruction2 = { ...instruction, bitLegDictatingRungState: false };
   
-  myDiagram.model = new go.GraphLinksModel(
-    [
-      { name: 'OTL', shortName: 'L', category: 'BIT', operand: '?', displayType: 'coil', desc: '', isBodySelected: false },
-      { name: 'XIC', shortName: '', category: 'BIT', operand: 'LongOperandText', displayType: 'contact', desc: '' },
-      { name: 'XIO', shortName: '/', category: 'BIT', operand: 'LongOperandText', displayType: 'contact', desc: '' },
-      { name: 'ONS', shortName: undefined, category: 'BIT', operand: 'LongOperandText', displayType: 'contact', desc: '' },
+  myDiagram.model = $(go.GraphLinksModel, {
+    linkKeyProperty: 'linkKey',
+    nodeDataArray: [
+      { name: 'OTL', shortName: 'L', category: 'BIT', operand: '?', displayType: 'coil', desc: '' },
+      // { name: 'OTE', shortName: '', category: 'BIT', operand: '?', displayType: 'coil', desc: '' },
+      // { name: 'XIC', shortName: '', category: 'BIT', operand: 'LongOperandText', displayType: 'contact', desc: '' },
+      // { name: 'XIO', shortName: '/', category: 'BIT', operand: 'LongOperandText', displayType: 'contact', desc: '' },
+      // { name: 'ONS', shortName: undefined, category: 'BIT', operand: 'LongOperandText', displayType: 'contact', desc: '' },
       // instruction,
       // instruction2,
     ],
-  );
+    linkDataArray: [
+    ]
+  });
+  
+  myLinkData = (myDiagram.model as go.GraphLinksModel).findLinkDataForKey('myLink');
+  console.warn('link data', myLinkData);
+  console.warn('link', myDiagram.findLinkForKey('myLink'));
 }

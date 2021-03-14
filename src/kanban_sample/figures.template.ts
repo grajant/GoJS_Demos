@@ -172,4 +172,7 @@ export const defineAllFigures = (): void => {
   go.Shape.defineFigureGenerator(EFigures.BODY_SHAPE, (_shape: go.Shape, w: number, h: number) =>
     bottomRightRoundedRectangle(w, h).offset(0, 0),
   );
+  
+  go.Shape.defineArrowheadGeometry('Rectangle', 'F M0 0 L16 0 16 8 0 8z')
+  console.warn('parsed geo', go.Geometry.parse('M0 0 L8 0 8 16 0 16z'));
 }

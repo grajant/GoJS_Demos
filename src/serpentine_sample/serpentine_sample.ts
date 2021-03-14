@@ -1,4 +1,4 @@
-import { SerpentineLayout } from './serpentine-layout';
+import { WrappingLayout } from './wrapping-layout';
 import * as go from 'gojs';
 import { MultiArrowLink } from './multi-arrow-link';
 

@@ -56,7 +56,7 @@ export const END_RUNG_KEY = 'EndRung';
 export const $ = go.GraphObject.make;
 
 export function generateGroupTemplate(diagram: go.Diagram): go.Group {
-  return $(go.Group, 'Horizontal',
+  return $(go.Group, go.Panel.Horizontal,
     {
       movable: true,
       selectable: true,

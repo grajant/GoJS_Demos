@@ -36,28 +36,9 @@ export const generateBitInstructionTemplate = (): go.Node =>
     },
     $(go.RowColumnDefinition, { row: 2, height: 32, maximum: 32 }),
     $(go.RowColumnDefinition, { column: 0, maximum: 20 }),
-    $(go.RowColumnDefinition, { column: 1 }),
+    $(go.RowColumnDefinition, { column: 1, background: 'rgba(106,245,47,0.5)' }),
     $(go.RowColumnDefinition, { column: 2, maximum: 20 }),
     $(go.RowColumnDefinition, { column: 3, maximum: 16 }),
-    
-    $(go.Panel, 'Auto', {
-        row: 1,
-        rowSpan: 2,
-        column: 0,
-        columnSpan: 3,
-        stretch: go.GraphObject.Fill,
-        minSize: new go.Size(60, NaN),
-      },
-      $(go.Shape, EFigures.FULL_CONTENT_SHAPE,
-        {
-          stretch: go.GraphObject.Fill,
-          strokeWidth: 1, fill: LD_COMMON_COLORS.TRANSPARENT,
-        },
-        new go.Binding('stroke', 'isSelected',
-          (isSelected: boolean) => isSelected ? LD_COMMON_COLORS.SELECTION_ACTIVE : LD_COMMON_COLORS.TRANSPARENT)
-          .ofObject(),
-      ),
-    ),
     
     // Desc Row
     $(go.Panel, go.Panel.TableRow, { row: 0 },
@@ -90,7 +71,33 @@ export const generateBitInstructionTemplate = (): go.Node =>
     
     headerTemplate(),
     bodyTemplate(),
+    nodeBorder(),
+    
+  
+    headerSelection(),
+    bodySelection(),
   );
+
+const nodeBorder = (): go.Panel => {
+  return $(go.Panel, 'Auto', {
+      row: 1,
+      rowSpan: 2,
+      column: 0,
+      columnSpan: 3,
+      stretch: go.GraphObject.Fill,
+      minSize: new go.Size(60, NaN),
+    },
+    $(go.Shape, EFigures.FULL_CONTENT_SHAPE,
+      {
+        stretch: go.GraphObject.Fill,
+        strokeWidth: 1, fill: LD_COMMON_COLORS.TRANSPARENT,
+      },
+      new go.Binding('stroke', 'isSelected',
+        (isSelected: boolean) => isSelected ? LD_COMMON_COLORS.SELECTION_ACTIVE : LD_COMMON_COLORS.TRANSPARENT)
+        .ofObject(),
+    ),
+  );
+};
 
 export const headerTemplate = (): go.Panel => {
   return $(go.Panel, go.Panel.TableRow, { row: 1 },
@@ -126,18 +133,28 @@ export const headerTemplate = (): go.Panel => {
         textAlign: 'center',
         minSize: new go.Size(48, NaN),
       },
-      new go.Binding('stroke', 'isSelected',
-        (isSelected: boolean) => isSelected ? 'white' : 'black')
-        .ofObject(),
+      new go.Binding('stroke', 'isBodySelected', (_: boolean, thisObj: go.GraphObject) => {
+        const isSelected = !!thisObj.part?.isSelected;
+        const isHeaderSelected = !!thisObj.part?.data?.isHeaderSelected;
+        
+        if (!isHeaderSelected && isSelected) return LD_COMMON_COLORS.SELECTION_ACTIVE;
+        return (isHeaderSelected && isSelected) ? LD_COMMON_COLORS.HEADER_TEXT_SELECTED : LibraryColors.BG_6_CONTRAST;
+      }),
+      new go.Binding('stroke', 'isHeaderSelected', (isHeaderSelected: boolean, thisObj: go.GraphObject) => {
+        const isSelected = !!thisObj.part?.isSelected;
+        
+        if (!isHeaderSelected && isSelected) return LD_COMMON_COLORS.SELECTION_ACTIVE;
+        return (isHeaderSelected && isSelected) ? LD_COMMON_COLORS.HEADER_TEXT_SELECTED : LibraryColors.BG_6_CONTRAST;
+      }),
       new go.Binding('text', 'operand'),
     ),
-    headerSelection(),
   );
 };
 
 function headerSelection(): go.Panel {
   return $(go.Panel, 'Auto',
     {
+      row: 1,
       column: 0, columnSpan: 3,
       stretch: go.GraphObject.Fill,
       click: (e: go.InputEvent, thisObj: go.GraphObject) => {
@@ -162,6 +179,7 @@ function headerSelection(): go.Panel {
 export const bodyTemplate = (): go.Panel => {
   return $(go.Panel, go.Panel.TableRow,
     { row: 2 },
+    // Body selection
     $(go.Panel, 'Auto',
       {
         column: 0, columnSpan: 3,
@@ -171,20 +189,27 @@ export const bodyTemplate = (): go.Panel => {
         {
           name: 'BodySel',
           stretch: go.GraphObject.Fill,
-          fill: LD_COMMON_COLORS.TRANSPARENT,
+          fill: LibraryColors.PRIMARY_600_CONTRAST,
           strokeWidth: 0,
         },
         new go.Binding('fill', 'isBodySelected', (isBodySelected: boolean, thisObj: go.GraphObject) => {
           const isSelected = !!thisObj.part?.isSelected;
-          return (isBodySelected && isSelected) ? LD_COMMON_COLORS.SELECTION_ACTIVE : LD_COMMON_COLORS.TRANSPARENT;
+          return (isBodySelected && isSelected) ? LD_COMMON_COLORS.SELECTION_ACTIVE : LibraryColors.PRIMARY_600_CONTRAST;
         }),
         new go.Binding('stroke', 'fill').ofObject('BodySel'),
       ),
     ),
-    //
+    // Instr From Port Line
     $(go.Shape, 'Rectangle',
       new go.Binding('fill', 'isBodySelected', (isBodySelected: boolean, thisObj: go.GraphObject) => {
         const isSelected = !!thisObj.part?.isSelected;
+        if (!isBodySelected && isSelected) return LD_COMMON_COLORS.SELECTION_ACTIVE;
+        return (isBodySelected && isSelected) ? LD_COMMON_COLORS.HEADER_TEXT_SELECTED : LibraryColors.PRIMARY_500;
+      }),
+      new go.Binding('fill', 'isHeaderSelected', (_: boolean, thisObj: go.GraphObject) => {
+        const isSelected = !!thisObj.part?.isSelected;
+        const isBodySelected = !!thisObj.part?.data?.isBodySelected;
+        if (!isBodySelected && isSelected) return LD_COMMON_COLORS.SELECTION_ACTIVE;
         return (isBodySelected && isSelected) ? LD_COMMON_COLORS.HEADER_TEXT_SELECTED : LibraryColors.PRIMARY_500;
       }),
       {
@@ -200,14 +225,22 @@ export const bodyTemplate = (): go.Panel => {
     ),
     
     // Instr line
-    $(go.Panel, go.Panel.Horizontal,
-      new go.Binding('background', 'fill').ofObject('InstrLine'),
+    $(go.Panel, go.Panel.Auto,
+      // new go.Binding('background', 'fill').ofObject('InstrLine'),
       {
         column: 1,
         stretch: go.GraphObject.Horizontal,
         alignment: go.Spot.LeftCenter,
-        height: 1,
+        height: 3,
+        padding: new go.Margin(1, 0, 0, 0),
       },
+      $(go.Shape,
+        new go.Binding('fill', 'fill').ofObject('InstrLine'),
+        {
+          stretch: go.GraphObject.Horizontal,
+          height: 1,
+          strokeWidth: 0,
+        }),
     ),
     bitInstrShape(),
     
@@ -240,13 +273,13 @@ export const bodyTemplate = (): go.Panel => {
         },
       ),
     ),
-    bodySelection(),
   );
 };
 
 function bodySelection(): go.Panel {
   return $(go.Panel, 'Auto',
     {
+      row: 2,
       column: 0, columnSpan: 3,
       stretch: go.GraphObject.Fill,
       click: (e: go.InputEvent, thisObj: go.GraphObject) => {
@@ -283,30 +316,44 @@ const bitInstrShape = () => {
       new go.Binding('desiredSize', 'displayType', (type: string, thisObj: go.GraphObject) =>
         getShapeProperties<go.Size>(type, thisObj, BitShapeLoc.LEFT, BitShapeProperties.SIZE),
       ),
-      new go.Binding('fill', 'displayType', (type: string, thisObj: go.GraphObject) =>
-        getShapeProperties<go.Size>(type, thisObj, BitShapeLoc.LEFT, BitShapeProperties.FILL),
-      ),
+      new go.Binding('fill', 'fill', (_fill: string, thisObj: go.GraphObject) => {
+        const type = thisObj.part?.data.displayType;
+        return getShapeProperties<go.Size>(type, thisObj, BitShapeLoc.LEFT, BitShapeProperties.FILL);
+      }).ofObject('BodySel'),
+      {
+        name: 'InstrLeftShape',
+      }
     ),
     $(go.Panel, go.Panel.Horizontal,
+      new go.Binding('background', 'isBodySelected', (isBodySelected: boolean, thisObj: go.GraphObject) => {
+        const isSelected = !!thisObj.part?.isSelected;
+        return (isBodySelected && isSelected) ? LD_COMMON_COLORS.SELECTION_ACTIVE : LibraryColors.PRIMARY_600_CONTRAST;
+      }),
       {
+        name: 'InstrLabel',
         background: 'white',
         padding: new go.Margin(0, 4, 0, 4),
       },
       $(go.TextBlock,
         new go.Binding('stroke', 'isBodySelected', (isBodySelected: boolean, thisObj: go.GraphObject) => {
           const isSelected = !!thisObj.part?.isSelected;
+          if (!isBodySelected && isSelected) return LD_COMMON_COLORS.SELECTION_ACTIVE;
           return (isBodySelected && isSelected) ? LD_COMMON_COLORS.HEADER_TEXT_SELECTED : LibraryColors.PRIMARY_800;
         }),
-        new go.Binding('stroke', 'isBodySelected', (isBodySelected: boolean, thisObj: go.GraphObject) => {
+        new go.Binding('stroke', 'isHeaderSelected', (_: boolean, thisObj: go.GraphObject) => {
           const isSelected = !!thisObj.part?.isSelected;
+          const isBodySelected = !!thisObj.part?.data?.isBodySelected;
+          if (!isBodySelected && isSelected) return LD_COMMON_COLORS.SELECTION_ACTIVE;
           return (isBodySelected && isSelected) ? LD_COMMON_COLORS.HEADER_TEXT_SELECTED : LibraryColors.PRIMARY_800;
-        }).ofObject(),
+        }),
+        new go.Binding('background', 'background').ofObject('InstrLabel'),
         {
           minSize: new go.Size(8, 16),
           background: 'white',
           font: '14px Verdana',
           textAlign: 'center',
           verticalAlignment: go.Spot.Bottom,
+          stroke: LibraryColors.PRIMARY_800,
         },
         new go.Binding('text', 'name', (name: string, thisObj: go.GraphObject): string => {
           return thisObj.part?.data.shortName ?? name;
@@ -321,9 +368,7 @@ const bitInstrShape = () => {
       new go.Binding('desiredSize', 'displayType', (type: string, thisObj: go.GraphObject) =>
         getShapeProperties<go.Size>(type, thisObj, BitShapeLoc.RIGHT, BitShapeProperties.SIZE),
       ),
-      new go.Binding('fill', 'displayType', (type: string, thisObj: go.GraphObject) =>
-        getShapeProperties<go.Size>(type, thisObj, BitShapeLoc.RIGHT, BitShapeProperties.FILL),
-      ),
+      new go.Binding('fill', 'fill').ofObject('InstrLeftShape'),
     ),
   );
 };
@@ -369,7 +414,7 @@ const getContactProperties = (shapeLoc: BitShapeLoc, obj: go.GraphObject): IBitS
   } else {
     figure = shapeLoc === BitShapeLoc.RIGHT ? EFigures.CLOSING_BRACKET : EFigures.OPENING_BRACKET;
     desiredSize = new go.Size(4, 16);
-    fill = isSelected ? LD_COMMON_COLORS.SELECTION_ACTIVE : LD_COMMON_COLORS.HEADER_TEXT_SELECTED;
+    fill = (obj.part?.findObject('BodySel') as go.Shape)?.fill?.toString() ?? '';
   }
   
   return { desiredSize, figure, fill };
@@ -380,7 +425,7 @@ const getCoilProperties = (shapeLoc: BitShapeLoc, obj: go.GraphObject): IBitShap
   
   const figure = shapeLoc === BitShapeLoc.RIGHT ? EFigures.HALF_CIRCLE_RIGHT : EFigures.HALF_CIRCLE_LEFT;
   const desiredSize = new go.Size(8, 16);
-  const fill = isSelected ? LD_COMMON_COLORS.SELECTION_ACTIVE : LD_COMMON_COLORS.HEADER_TEXT_SELECTED;
+  const fill = (obj.part?.findObject('BodySel') as go.Shape)?.fill?.toString() ?? '';
   
   return { desiredSize, figure, fill };
 };

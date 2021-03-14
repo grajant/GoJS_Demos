@@ -1,6 +1,6 @@
 import * as go from 'gojs';
 import { ENodeElements, ERungElements } from './rung.template';
-import { SerpentineLayout } from '../serpentine_sample/serpentine-layout';
+import { WrappingLayout } from '../serpentine_sample/wrapping-layout';
 
 // For the layout
 export const PLACEHOLDER_OFFSET = 0;
@@ -94,7 +94,7 @@ export class PoolLayout extends go.GridLayout {
   
         const rungContentBounds = rungContentShape.getDocumentBounds();
         const wrap = rungContentBounds.x + poolSize.width;
-        const serpentineLayout = new SerpentineLayout(this, rung, wrap);
+        const serpentineLayout = new WrappingLayout(this, rung, wrap);
         serpentineLayout.doLayoutForNodes(rung.memberParts, rungContentBounds.x, rungContentBounds.y);
   
         const rungHeight = serpentineLayout.rungHeight;

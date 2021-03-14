@@ -25,7 +25,7 @@ export interface ILayoutBounds {
  * If you want to experiment with this extension, try the <a href="../../extensionsTS/Serpentine.html">Serpentine Layout</a> sample.
  * @category Layout Extension
  */
-export class SerpentineLayout {
+export class WrappingLayout {
   private _spacing: go.Size = new go.Size(16, 40);
   private _wrap: number = NaN;
   private _previousNodes: go.Part[] = [];
